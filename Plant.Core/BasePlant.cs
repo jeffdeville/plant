@@ -4,11 +4,11 @@ using System.Linq;
 
 namespace Plant.Core
 {
-  public abstract class AbstractPlant
+  public class BasePlant
   {
-    private readonly IDictionary<Type, object> defaultValuesByType = new Dictionary<Type, object>();
+    private readonly IDictionary<Type, object> blueprints = new Dictionary<Type, object>();
 
-    protected AbstractPlant()
+    protected BasePlant()
     {
       Setup();
     }
@@ -16,8 +16,8 @@ namespace Plant.Core
     public virtual T Create<T>() where T : new()
     {
       var instance = new T();
-      if(defaultValuesByType.ContainsKey(typeof(T)))
-        SetProperties(defaultValuesByType[typeof(T)], instance);
+      if(blueprints.ContainsKey(typeof(T)))
+        SetProperties(blueprints[typeof(T)], instance);
       return instance;
     }
 
@@ -40,11 +40,14 @@ namespace Plant.Core
                                     });
     }
 
-    protected virtual void Seed<T>(object defaults)
+    protected virtual void CreateBlueprint<T>(object defaults)
     {
-      defaultValuesByType.Add(typeof(T), defaults);
+      blueprints.Add(typeof(T), defaults);
     }
 
-    public abstract void Setup();
+    public virtual void Setup()
+    {
+      
+    }
   }
 }

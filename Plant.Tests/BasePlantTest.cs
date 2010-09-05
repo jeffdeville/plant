@@ -1,11 +1,12 @@
-﻿using NUnit.Framework;
+﻿using System;
+using NUnit.Framework;
 using Plant.Core;
 using Plant.Tests.TestModels;
 
 namespace Plant.Tests
 {
   [TestFixture]
-  public class AbstractPlantTest
+  public class BasePlantTest
   {
     [Test]
     public void Should_Create_Instance_Of_Specified_Type()
@@ -38,19 +39,16 @@ namespace Plant.Tests
     {
       Assert.AreEqual("Toyota", new TestPlant().Create<Car>(new { Make = "Toyota"}).Make);
     }
-
   }
 
-  class TestPlant : AbstractPlant
+  class TestPlant : BasePlant
   {
     public override void Setup()
     {
-      Seed<Person>(new 
-                     {
-                       FirstName = "Barbara"
-                     });
+      CreateBlueprint<Person>(new
+      {
+        FirstName = "Barbara"
+      });
     }
   }
-
-
 }
