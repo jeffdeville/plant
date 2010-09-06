@@ -36,9 +36,26 @@ namespace Plant.Core
                                     {
                                       var instanceProperty = instance.GetType().GetProperties().FirstOrDefault(prop => prop.Name == property.Name);
                                       if(instanceProperty == null) throw new PropertyNotFoundException();
+
                                       var value = property.GetValue(propertyValues, null);
-                                      instanceProperty.SetValue(instance, value, null);
+                                      if (typeof(ILazyProperty).IsAssignableFrom(value.GetType()))
+                                        AssignLazyPropertyResult(instance, instanceProperty, value);
+                                      else
+                                        instanceProperty.SetValue(instance, value, null);
                                     });
+    }
+
+    private static void AssignLazyPropertyResult<T>(T instance, PropertyInfo instanceProperty, object value)
+    {
+      var lazyProperty = (ILazyProperty)value;
+      
+      if(lazyProperty.Func.Method.ReturnType != instanceProperty.PropertyType)
+        throw new LazyPropertyHasWrongTypeException(string.Format("Cannot assign type {0} to property {1} of type {2}", 
+          lazyProperty.Func.Method.ReturnType, 
+          instanceProperty.Name, 
+          instanceProperty.PropertyType));
+
+      instanceProperty.SetValue(instance, lazyProperty.Func.DynamicInvoke(), null);
     }
 
     public virtual void Define<T>(object defaults)
