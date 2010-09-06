@@ -14,16 +14,10 @@ namespace Plant.Core
     private readonly Blueprints constructorBlueprints = new Blueprints();
     private readonly IDictionary<Type, CreationStrategy> creationStrategies = new Dictionary<Type, CreationStrategy>();
 
-    private T CreateViaProperties<T>(Properties userSpecifiedPropertyList)
+    private T CreateViaProperties<T>(Properties userProperties)
     {
       var instance = CreateInstanceWithEmptyConstructor<T>();
-
-      if (propertyBlueprints.ContainsKey(typeof(T)))
-        SetProperties(propertyBlueprints[typeof(T)], instance);
-
-      if (userSpecifiedPropertyList != null)
-        SetProperties(userSpecifiedPropertyList, instance);
-
+      SetProperties(Merge(propertyBlueprints[typeof (T)], userProperties), instance);
       return instance;
     }
 
@@ -45,8 +39,8 @@ namespace Plant.Core
 
     private Properties Merge(Properties defaults, Properties overrides)
     {
-      return defaults.ToDictionary(kvp => kvp.Key,
-                            kvp => overrides.ContainsKey(kvp.Key) ? overrides[kvp.Key] : defaults[kvp.Key]);
+      return defaults.Keys.Union(overrides.Keys).ToDictionary(key => key,
+                            key => overrides.ContainsKey(key) ? overrides[key] : defaults[key]);
     }
 
     private static T CreateInstanceWithEmptyConstructor<T>()

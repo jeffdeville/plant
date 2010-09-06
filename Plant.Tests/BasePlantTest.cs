@@ -23,7 +23,7 @@ namespace Plant.Tests
     public void Should_Create_Instance_With_Requested_Properties()
     {
       var plant = new BasePlant();
-      plant.DefinePropertiesOf<Person>(new { FirstName=""});
+      plant.DefinePropertiesOf<Person>(new { FirstName = "" });
       Assert.AreEqual("James", plant.Create<Person>(new { FirstName = "James" }).FirstName);
     }
 
@@ -40,15 +40,23 @@ namespace Plant.Tests
     public void Should_Throw_PropertyNotFound_Exception_When_Given_Invalid_Property()
     {
       var plant = new BasePlant();
-      plant.DefinePropertiesOf<Person>(new { FirstName = "" });
-      plant.Create<Person>(new { Foo = "Nothing" });
+      plant.DefinePropertiesOf<Person>(new { Foo = "" });
+      plant.Create<Person>();
     }
 
     [Test]
     [ExpectedException(typeof(TypeNotSetupException))]
     public void Should_Throw_TypeNotSetupException_When_Trying_To_Create_Type_That_Is_Not_Setup()
     {
-      new BasePlant().Create<Person>(new {FirstName = "Barbara"});
+      new BasePlant().Create<Person>(new { FirstName = "Barbara" });
+    }
+
+    [Test]
+    public void Should_Set_User_Properties_That_Are_Not_Defaulted()
+    {
+      var plant = new BasePlant();
+      plant.DefinePropertiesOf<Person>(new { FirstName = "Barbara" });
+      Assert.AreEqual("Brechtel", plant.Create<Person>(new { LastName = "Brechtel" }).LastName);
     }
 
     [Test]
@@ -98,7 +106,7 @@ namespace Plant.Tests
     public void Should_Send_Constructor_Arguments_In_Correct_Order()
     {
       var testPlant = new BasePlant();
-      testPlant.DefineConstructionOf<Book>(new { Publisher = "Tor", Author="Robert Jordan" });
+      testPlant.DefineConstructionOf<Book>(new { Publisher = "Tor", Author = "Robert Jordan" });
       Assert.AreEqual("Tor", testPlant.Create<Book>().Publisher);
       Assert.AreEqual("Robert Jordan", testPlant.Create<Book>().Author);
     }
@@ -109,9 +117,17 @@ namespace Plant.Tests
       var testPlant = new BasePlant();
       testPlant.DefineConstructionOf<House>(new { Color = "Red", SquareFoot = 3000 });
 
-      Assert.AreEqual("Blue", testPlant.Create<House>(new {Color = "Blue"}).Color);
+      Assert.AreEqual("Blue", testPlant.Create<House>(new { Color = "Blue" }).Color);
     }
-  
+
+    [Test]
+    public void Should_Only_Set_Properties_Once()
+    {
+      var testPlant = new BasePlant();
+      testPlant.DefinePropertiesOf<WriteOnceMemoryModule>(new { Value = 5000 });
+      Assert.AreEqual(10, testPlant.Create<WriteOnceMemoryModule>(new { Value = 10 }).Value);
+    }
+
   }
   namespace TestBlueprints
   {
