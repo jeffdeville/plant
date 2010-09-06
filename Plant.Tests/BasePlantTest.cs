@@ -26,7 +26,7 @@ namespace Plant.Tests
     public void Should_Use_Default_Instance_Values()
     {
       var testPlant = new BasePlant();
-      testPlant.Define<Person>(new { FirstName = "Barbara" });
+      testPlant.DefinePropertiesOf<Person>(new { FirstName = "Barbara" });
       Assert.AreEqual("Barbara", testPlant.Create<Person>().FirstName);
     }
 
@@ -40,7 +40,7 @@ namespace Plant.Tests
     [Test]
     public void Should_Setup_Type_Without_Defaults()
     {
-      Assert.AreEqual("Toyota", new BasePlant().Create<Car>(new { Make = "Toyota" }).Make);
+      Assert.AreEqual("Barbara", new BasePlant().Create<Person>(new { FirstName = "Barbara" }).FirstName);
     }
 
     [Test]
@@ -55,7 +55,7 @@ namespace Plant.Tests
     {
       var plant = new BasePlant();
       string lazyMiddleName = null;
-      plant.Define<Person>(new
+      plant.DefinePropertiesOf<Person>(new
                              {
                                MiddleName = new LazyProperty<string>(() => lazyMiddleName)
                              });
@@ -70,13 +70,31 @@ namespace Plant.Tests
     public void Should_Give_Reasonable_Exception_When_Lazy_Property_Definition_Returns_Wrong_Type()
     {
       var plant = new BasePlant();
-      plant.Define<Person>(new
+      plant.DefinePropertiesOf<Person>(new
       {
         MiddleName = new LazyProperty<int>(() => 5)
       });
 
       plant.Create<Person>();
     }
+
+    [Test]
+    public void Should_Create_Objects_Via_Constructor()
+    {
+      var testPlant = new BasePlant();
+      testPlant.DefineConstructionOf<Car>(new { Make = "Toyota" });
+      Assert.AreEqual("Toyota", testPlant.Create<Car>().Make);
+    }
+
+    [Test]
+    public void Should_Send_Constructor_Arguments_In_Correct_Order()
+    {
+      var testPlant = new BasePlant();
+      testPlant.DefineConstructionOf<Book>(new { Publisher = "Tor", Author="Robert Jordan" });
+      Assert.AreEqual("Tor", testPlant.Create<Book>().Publisher);
+      Assert.AreEqual("Robert Jordan", testPlant.Create<Book>().Author);
+    }
+
   }
   namespace TestBlueprints
   {
@@ -84,7 +102,7 @@ namespace Plant.Tests
     {
       public void SetupPlant(BasePlant plant)
       {
-        plant.Define<Person>(new
+        plant.DefinePropertiesOf<Person>(new
                                {
                                  MiddleName = "Elaine"
                                });

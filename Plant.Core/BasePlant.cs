@@ -2,24 +2,51 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Blueprints = System.Collections.Generic.Dictionary<System.Type, object>;
 
 namespace Plant.Core
 {
   public class BasePlant
   {
-    private readonly IDictionary<Type, object> blueprints = new Dictionary<Type, object>();
+    private readonly Blueprints propertyBlueprints = new Blueprints();
+    private readonly Blueprints constructorBlueprints = new Blueprints();
 
     public BasePlant()
     {
       
     }
 
-    public virtual T Create<T>() where T : new()
+    public virtual T Create<T>()
     {
-      var instance = new T();
-      if(blueprints.ContainsKey(typeof(T)))
-        SetProperties(blueprints[typeof(T)], instance);
+      var instance = constructorBlueprints.ContainsKey(typeof(T)) ? CreateInstanceWithDefaults<T>() : CreateInstanceWithEmptyConstructor<T>();
+
+
+      if(propertyBlueprints.ContainsKey(typeof(T)))
+        SetProperties(propertyBlueprints[typeof(T)], instance);
       return instance;
+    }
+
+    private static T CreateInstanceWithEmptyConstructor<T>()
+    {
+      return Activator.CreateInstance<T>();
+    }
+
+    private T CreateInstanceWithDefaults<T>()
+    {
+      var type = typeof (T);
+      var constructor = type.GetConstructors().First();
+      var paramNames = constructor.GetParameters().Select(p => p.Name.ToLower()).ToList();
+      var props = GetProps(type);
+
+      return (T)constructor.Invoke(props.
+        OrderBy(prop => paramNames.IndexOf(prop.Item1)).
+        Select(prop => prop.Item2).ToArray());
+    }
+
+    private IEnumerable<Tuple<string, object>> GetProps(Type type)
+    {
+      var defaults = constructorBlueprints[type];
+      return defaults.GetType().GetProperties().Select(prop => new Tuple<string,object>(prop.Name.ToLower(), prop.GetValue(defaults,null)));
     }
 
     public virtual T Create<T>(object userSpecifiedProperties) where T : new()
@@ -58,9 +85,14 @@ namespace Plant.Core
       instanceProperty.SetValue(instance, lazyProperty.Func.DynamicInvoke(), null);
     }
 
-    public virtual void Define<T>(object defaults)
+    public virtual void DefinePropertiesOf<T>(object defaults)
     {
-      blueprints.Add(typeof(T), defaults);
+      propertyBlueprints.Add(typeof(T), defaults);
+    }
+
+    public void DefineConstructionOf<T>(object defaults)
+    {
+      constructorBlueprints.Add(typeof (T), defaults);
     }
 
     public BasePlant WithBlueprintsFromAssemblyOf<T>()
@@ -75,5 +107,6 @@ namespace Plant.Core
       return this;
 
     }
+
   }
 }
