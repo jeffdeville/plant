@@ -68,7 +68,7 @@ namespace Plant.Core
     {
       if(creationStrategies.ContainsKey(typeof(T)))
         return creationStrategies[typeof (T)];
-      return CreationStrategy.Property;
+      throw new TypeNotSetupException(string.Format("No creation strategy defined for type: {0}", typeof(T)));
 
     }
 

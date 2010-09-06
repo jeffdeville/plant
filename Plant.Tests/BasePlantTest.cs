@@ -13,13 +13,18 @@ namespace Plant.Tests
     [Test]
     public void Should_Create_Instance_Of_Specified_Type()
     {
-      Assert.IsInstanceOf(typeof(Person), new BasePlant().Create<Person>());
+      var plant = new BasePlant();
+      plant.DefinePropertiesOf<Person>(new { FirstName = "" });
+
+      Assert.IsInstanceOf(typeof(Person), plant.Create<Person>());
     }
 
     [Test]
     public void Should_Create_Instance_With_Requested_Properties()
     {
-      Assert.AreEqual("James", new BasePlant().Create<Person>(new { FirstName = "James" }).FirstName);
+      var plant = new BasePlant();
+      plant.DefinePropertiesOf<Person>(new { FirstName=""});
+      Assert.AreEqual("James", plant.Create<Person>(new { FirstName = "James" }).FirstName);
     }
 
     [Test]
@@ -34,13 +39,16 @@ namespace Plant.Tests
     [ExpectedException(typeof(PropertyNotFoundException))]
     public void Should_Throw_PropertyNotFound_Exception_When_Given_Invalid_Property()
     {
-      new BasePlant().Create<Person>(new { Foo = "Nothing" });
+      var plant = new BasePlant();
+      plant.DefinePropertiesOf<Person>(new { FirstName = "" });
+      plant.Create<Person>(new { Foo = "Nothing" });
     }
 
     [Test]
-    public void Should_Setup_Type_Without_Defaults()
+    [ExpectedException(typeof(TypeNotSetupException))]
+    public void Should_Throw_TypeNotSetupException_When_Trying_To_Create_Type_That_Is_Not_Setup()
     {
-      Assert.AreEqual("Barbara", new BasePlant().Create<Person>(new { FirstName = "Barbara" }).FirstName);
+      new BasePlant().Create<Person>(new {FirstName = "Barbara"});
     }
 
     [Test]
@@ -67,7 +75,7 @@ namespace Plant.Tests
 
     [Test]
     [ExpectedException(typeof(LazyPropertyHasWrongTypeException))]
-    public void Should_Give_Reasonable_Exception_When_Lazy_Property_Definition_Returns_Wrong_Type()
+    public void Should_Throw_LazyPropertyHasWrongTypeException_When_Lazy_Property_Definition_Returns_Wrong_Type()
     {
       var plant = new BasePlant();
       plant.DefinePropertiesOf<Person>(new
