@@ -15,11 +15,11 @@ Features
 
 Currently Plant supports
 
-* Object creation via setting properties
-* Object creation Specifying constructor arguments
+* Object creation via properties
+* Object creation by constructor arguments
 * Overriding default property and constructor argument values
 * Modular object definition
-* Lazyily evauated property and constructor argument values
+* Lazily evaluated property and constructor argument values
 
 Targetted features can be found in the issues list for the project.  Some specific ones are
 
