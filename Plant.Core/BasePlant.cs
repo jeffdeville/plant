@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace Plant.Core
 {
@@ -8,9 +9,9 @@ namespace Plant.Core
   {
     private readonly IDictionary<Type, object> blueprints = new Dictionary<Type, object>();
 
-    protected BasePlant()
+    public BasePlant()
     {
-      Setup();
+      
     }
 
     public virtual T Create<T>() where T : new()
@@ -40,14 +41,22 @@ namespace Plant.Core
                                     });
     }
 
-    protected virtual void CreateBlueprint<T>(object defaults)
+    public virtual void Define<T>(object defaults)
     {
       blueprints.Add(typeof(T), defaults);
     }
 
-    public virtual void Setup()
+    public BasePlant WithBlueprintsFromAssemblyOf<T>()
     {
-      
+      var assembly = typeof (T).Assembly;
+      var blueprintTypes = assembly.GetTypes().Where(t => typeof (Blueprint).IsAssignableFrom(t));
+      blueprintTypes.ToList().ForEach(blueprintType =>
+                                    {
+                                      var blueprint = (Blueprint)Activator.CreateInstance(blueprintType);
+                                      blueprint.SetupPlant(this);
+                                    });
+      return this;
+
     }
   }
 }
