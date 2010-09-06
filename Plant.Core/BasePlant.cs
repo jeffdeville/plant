@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Blueprints = System.Collections.Generic.Dictionary<System.Type, object>;
+using Properties = System.Collections.Generic.IDictionary<Plant.Core.PropertyData, object>;
+using Blueprints = System.Collections.Generic.Dictionary<System.Type, System.Collections.Generic.IDictionary<Plant.Core.PropertyData, object>>;
+
 
 namespace Plant.Core
 {
@@ -10,20 +12,41 @@ namespace Plant.Core
   {
     private readonly Blueprints propertyBlueprints = new Blueprints();
     private readonly Blueprints constructorBlueprints = new Blueprints();
+    private readonly IDictionary<Type, CreationStrategy> creationStrategies = new Dictionary<Type, CreationStrategy>();
 
-    public BasePlant()
+    private T CreateViaProperties<T>(Properties userSpecifiedPropertyList)
     {
-      
+      var instance = CreateInstanceWithEmptyConstructor<T>();
+
+      if (propertyBlueprints.ContainsKey(typeof(T)))
+        SetProperties(propertyBlueprints[typeof(T)], instance);
+
+      if (userSpecifiedPropertyList != null)
+        SetProperties(userSpecifiedPropertyList, instance);
+
+      return instance;
     }
 
-    public virtual T Create<T>()
+    private T CreateViaConstructor<T>(Properties userProperties)
     {
-      var instance = constructorBlueprints.ContainsKey(typeof(T)) ? CreateInstanceWithDefaults<T>() : CreateInstanceWithEmptyConstructor<T>();
+      var type = typeof(T);
+      var constructor = type.GetConstructors().First();
+      var paramNames = constructor.GetParameters().Select(p => p.Name.ToLower()).ToList();
+      var defaultProperties = constructorBlueprints[type];
 
+      var props = Merge(defaultProperties, userProperties);
 
-      if(propertyBlueprints.ContainsKey(typeof(T)))
-        SetProperties(propertyBlueprints[typeof(T)], instance);
-      return instance;
+      return
+        (T)
+        constructor.Invoke(
+          props.Keys.OrderBy(prop => paramNames.IndexOf(prop.Name.ToLower())).
+          Select(prop => props[prop]).ToArray());
+    }
+
+    private Properties Merge(Properties defaults, Properties overrides)
+    {
+      return defaults.ToDictionary(kvp => kvp.Key,
+                            kvp => overrides.ContainsKey(kvp.Key) ? overrides[kvp.Key] : defaults[kvp.Key]);
     }
 
     private static T CreateInstanceWithEmptyConstructor<T>()
@@ -31,40 +54,32 @@ namespace Plant.Core
       return Activator.CreateInstance<T>();
     }
 
-    private T CreateInstanceWithDefaults<T>()
+    public virtual T Create<T>(object userSpecifiedProperties = null)
     {
-      var type = typeof (T);
-      var constructor = type.GetConstructors().First();
-      var paramNames = constructor.GetParameters().Select(p => p.Name.ToLower()).ToList();
-      var props = GetProps(type);
+      var userSpecifiedPropertyList = ToPropertyList(userSpecifiedProperties);
+      
+      if(StrategyFor<T>() == CreationStrategy.Constructor)
+        return CreateViaConstructor<T>(userSpecifiedPropertyList);
 
-      return (T)constructor.Invoke(props.
-        OrderBy(prop => paramNames.IndexOf(prop.Item1)).
-        Select(prop => prop.Item2).ToArray());
+      return CreateViaProperties<T>(userSpecifiedPropertyList);
     }
 
-    private IEnumerable<Tuple<string, object>> GetProps(Type type)
+    private CreationStrategy StrategyFor<T>()
     {
-      var defaults = constructorBlueprints[type];
-      return defaults.GetType().GetProperties().Select(prop => new Tuple<string,object>(prop.Name.ToLower(), prop.GetValue(defaults,null)));
+      if(creationStrategies.ContainsKey(typeof(T)))
+        return creationStrategies[typeof (T)];
+      return CreationStrategy.Property;
+
     }
 
-    public virtual T Create<T>(object userSpecifiedProperties) where T : new()
+    private static void SetProperties<T>(Properties properties, T instance)
     {
-      var instance = Create<T>();
-      SetProperties(userSpecifiedProperties, instance);
-      return instance;
-    }
-
-    private static void SetProperties<T>(object propertyValues, T instance)
-    {
-      var properties = propertyValues.GetType().GetProperties().ToList();
-      properties.ForEach(property =>
+      properties.Keys.ToList().ForEach(property =>
                                     {
                                       var instanceProperty = instance.GetType().GetProperties().FirstOrDefault(prop => prop.Name == property.Name);
-                                      if(instanceProperty == null) throw new PropertyNotFoundException();
+                                      if (instanceProperty == null) throw new PropertyNotFoundException();
 
-                                      var value = property.GetValue(propertyValues, null);
+                                      var value = properties[property];
                                       if (typeof(ILazyProperty).IsAssignableFrom(value.GetType()))
                                         AssignLazyPropertyResult(instance, instanceProperty, value);
                                       else
@@ -75,11 +90,11 @@ namespace Plant.Core
     private static void AssignLazyPropertyResult<T>(T instance, PropertyInfo instanceProperty, object value)
     {
       var lazyProperty = (ILazyProperty)value;
-      
-      if(lazyProperty.Func.Method.ReturnType != instanceProperty.PropertyType)
-        throw new LazyPropertyHasWrongTypeException(string.Format("Cannot assign type {0} to property {1} of type {2}", 
-          lazyProperty.Func.Method.ReturnType, 
-          instanceProperty.Name, 
+
+      if (lazyProperty.Func.Method.ReturnType != instanceProperty.PropertyType)
+        throw new LazyPropertyHasWrongTypeException(string.Format("Cannot assign type {0} to property {1} of type {2}",
+          lazyProperty.Func.Method.ReturnType,
+          instanceProperty.Name,
           instanceProperty.PropertyType));
 
       instanceProperty.SetValue(instance, lazyProperty.Func.DynamicInvoke(), null);
@@ -87,18 +102,31 @@ namespace Plant.Core
 
     public virtual void DefinePropertiesOf<T>(object defaults)
     {
-      propertyBlueprints.Add(typeof(T), defaults);
+      creationStrategies.Add(typeof(T), CreationStrategy.Property);
+      AddDefaultsTo<T>(propertyBlueprints, defaults);
     }
 
     public void DefineConstructionOf<T>(object defaults)
     {
-      constructorBlueprints.Add(typeof (T), defaults);
+      creationStrategies.Add(typeof(T), CreationStrategy.Constructor);
+      AddDefaultsTo<T>(constructorBlueprints, defaults);
+    }
+
+    private void AddDefaultsTo<T>(Blueprints blueprints, object defaults)
+    {
+      blueprints.Add(typeof(T), ToPropertyList(defaults));
+    }
+
+    private IDictionary<PropertyData, object> ToPropertyList(object obj)
+    {
+      if(obj == null) return new Dictionary<PropertyData, object>();
+      return obj.GetType().GetProperties().ToDictionary(prop => new PropertyData(prop), prop => prop.GetValue(obj, null));
     }
 
     public BasePlant WithBlueprintsFromAssemblyOf<T>()
     {
-      var assembly = typeof (T).Assembly;
-      var blueprintTypes = assembly.GetTypes().Where(t => typeof (Blueprint).IsAssignableFrom(t));
+      var assembly = typeof(T).Assembly;
+      var blueprintTypes = assembly.GetTypes().Where(t => typeof(Blueprint).IsAssignableFrom(t));
       blueprintTypes.ToList().ForEach(blueprintType =>
                                     {
                                       var blueprint = (Blueprint)Activator.CreateInstance(blueprintType);

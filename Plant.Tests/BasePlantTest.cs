@@ -95,6 +95,15 @@ namespace Plant.Tests
       Assert.AreEqual("Robert Jordan", testPlant.Create<Book>().Author);
     }
 
+    [Test]
+    public void Should_Override_Default_Constructor_Arguments()
+    {
+      var testPlant = new BasePlant();
+      testPlant.DefineConstructionOf<House>(new { Color = "Red", SquareFoot = 3000 });
+
+      Assert.AreEqual("Blue", testPlant.Create<House>(new {Color = "Blue"}).Color);
+    }
+  
   }
   namespace TestBlueprints
   {
