@@ -71,7 +71,7 @@ namespace Plant.Core
       properties.Keys.ToList().ForEach(property =>
                                     {
                                       var instanceProperty = instance.GetType().GetProperties().FirstOrDefault(prop => prop.Name == property.Name);
-                                      if (instanceProperty == null) throw new PropertyNotFoundException();
+                                      if (instanceProperty == null) throw new PropertyNotFoundException(property.Name, properties[property]);
 
                                       var value = properties[property];
                                       if (typeof(ILazyProperty).IsAssignableFrom(value.GetType()))
