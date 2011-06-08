@@ -128,6 +128,19 @@ namespace Plant.Tests
       Assert.AreEqual(10, testPlant.Create<WriteOnceMemoryModule>(new { Value = 10 }).Value);
     }
 
+    [Test]
+    public void Should_Call_AfterPropertyCallback_After_Properties_Populated()
+    {
+        var testPlant = new BasePlant();
+        testPlant.DefinePropertiesOf<Person>(new {FirstName = "Angus", LastName = "MacGyver"}, 
+            (p) =>
+            {
+                var person = p as Person;
+                person.FullName = person.FirstName + person.LastName;
+            });
+        var builtPerson = testPlant.Create<Person>();
+        Assert.AreEqual(builtPerson.FullName, "");
+    }
   }
   namespace TestBlueprints
   {

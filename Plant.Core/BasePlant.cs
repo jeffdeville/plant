@@ -13,6 +13,7 @@ namespace Plant.Core
     private readonly Blueprints propertyBlueprints = new Blueprints();
     private readonly Blueprints constructorBlueprints = new Blueprints();
     private readonly IDictionary<Type, CreationStrategy> creationStrategies = new Dictionary<Type, CreationStrategy>();
+    private readonly IDictionary<Type, Action<object>> postBuildActions = new Dictionary<Type, Action<object>>();
 
     private T CreateViaProperties<T>(Properties userProperties)
     {
@@ -51,11 +52,17 @@ namespace Plant.Core
     public virtual T Create<T>(object userSpecifiedProperties = null)
     {
       var userSpecifiedPropertyList = ToPropertyList(userSpecifiedProperties);
-      
-      if(StrategyFor<T>() == CreationStrategy.Constructor)
-        return CreateViaConstructor<T>(userSpecifiedPropertyList);
 
-      return CreateViaProperties<T>(userSpecifiedPropertyList);
+      T constructedObject = default(T);
+      if(StrategyFor<T>() == CreationStrategy.Constructor)
+        constructedObject = CreateViaConstructor<T>(userSpecifiedPropertyList);
+      else
+        constructedObject = CreateViaProperties<T>(userSpecifiedPropertyList);
+      
+      if (postBuildActions.ContainsKey(typeof(T)))
+        postBuildActions[typeof (T)](constructedObject);
+        
+      return constructedObject;
     }
 
     private CreationStrategy StrategyFor<T>()
@@ -90,14 +97,27 @@ namespace Plant.Core
           lazyProperty.Func.Method.ReturnType,
           instanceProperty.Name,
           instanceProperty.PropertyType));
-
+        // I can pass in the instance as a parameter to this function, but only if I'm using property-setters
       instanceProperty.SetValue(instance, lazyProperty.Func.DynamicInvoke(), null);
+    }
+
+      /// <summary>
+      /// The post-build method will accept the object that was just constructed as a parameter, so that you
+      /// can assign other values to it. Unfortunately, you have to do the casting yourself, for now.
+      /// </summary>
+      /// <typeparam name="T"></typeparam>
+      /// <param name="defaults"></param>
+      /// <param name="afterPropertyPopulation"></param>
+    public virtual void DefinePropertiesOf<T>(object defaults, Action<object> afterPropertyPopulation)
+    {
+        DefinePropertiesOf<T>(defaults);
+        postBuildActions[typeof (T)] = afterPropertyPopulation;
     }
 
     public virtual void DefinePropertiesOf<T>(object defaults)
     {
-      creationStrategies.Add(typeof(T), CreationStrategy.Property);
-      AddDefaultsTo<T>(propertyBlueprints, defaults);
+        creationStrategies.Add(typeof(T), CreationStrategy.Property);
+        AddDefaultsTo<T>(propertyBlueprints, defaults);
     }
 
     public void DefineConstructionOf<T>(object defaults)
