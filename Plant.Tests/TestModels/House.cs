@@ -4,7 +4,7 @@ namespace Plant.Tests.TestModels
   {
     public readonly string Color;
     public readonly int SquareFoot;
-
+    public string Summary { get; set; }
     public House(string color, int squareFoot)
     {
       Color = color;

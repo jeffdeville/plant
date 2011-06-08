@@ -129,17 +129,23 @@ namespace Plant.Tests
     }
 
     [Test]
-    public void Should_Call_AfterPropertyCallback_After_Properties_Populated()
+    public void Should_Call_AfterBuildCallback_After_Properties_Populated()
     {
         var testPlant = new BasePlant();
         testPlant.DefinePropertiesOf<Person>(new {FirstName = "Angus", LastName = "MacGyver"}, 
-            (p) =>
-            {
-                var person = p as Person;
-                person.FullName = person.FirstName + person.LastName;
-            });
+            (p) => p.FullName = p.FirstName + p.LastName);
         var builtPerson = testPlant.Create<Person>();
-        Assert.AreEqual(builtPerson.FullName, "");
+        Assert.AreEqual(builtPerson.FullName, "AngusMacGyver");
+    }
+
+    [Test]
+    public void Should_Call_AfterBuildCallback_AfterConstructor_Population()
+    {
+        var testPlant = new BasePlant();
+        testPlant.DefineConstructionOf<House>(new { Color = "Red", SquareFoot = 3000 }, 
+            (h) => h.Summary = h.Color + h.SquareFoot);
+
+        Assert.AreEqual("Blue", testPlant.Create<House>(new { Color = "Blue" }).Color);
     }
   }
   namespace TestBlueprints

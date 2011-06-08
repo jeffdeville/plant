@@ -13,7 +13,7 @@ namespace Plant.Core
     private readonly Blueprints propertyBlueprints = new Blueprints();
     private readonly Blueprints constructorBlueprints = new Blueprints();
     private readonly IDictionary<Type, CreationStrategy> creationStrategies = new Dictionary<Type, CreationStrategy>();
-    private readonly IDictionary<Type, Action<object>> postBuildActions = new Dictionary<Type, Action<object>>();
+    private readonly IDictionary<Type, object> postBuildActions = new Dictionary<Type, object>();
 
     private T CreateViaProperties<T>(Properties userProperties)
     {
@@ -60,7 +60,7 @@ namespace Plant.Core
         constructedObject = CreateViaProperties<T>(userSpecifiedPropertyList);
       
       if (postBuildActions.ContainsKey(typeof(T)))
-        postBuildActions[typeof (T)](constructedObject);
+        ((Action<T>)postBuildActions[typeof (T)])(constructedObject);
         
       return constructedObject;
     }
@@ -108,7 +108,7 @@ namespace Plant.Core
       /// <typeparam name="T"></typeparam>
       /// <param name="defaults"></param>
       /// <param name="afterPropertyPopulation"></param>
-    public virtual void DefinePropertiesOf<T>(object defaults, Action<object> afterPropertyPopulation)
+    public virtual void DefinePropertiesOf<T>(object defaults, Action<T> afterPropertyPopulation)
     {
         DefinePropertiesOf<T>(defaults);
         postBuildActions[typeof (T)] = afterPropertyPopulation;
@@ -120,7 +120,12 @@ namespace Plant.Core
         AddDefaultsTo<T>(propertyBlueprints, defaults);
     }
 
-    public void DefineConstructionOf<T>(object defaults)
+    public void DefineConstructionOf<T>(object defaults, Action<T> afterCtorPopulation)
+    {
+        DefineConstructionOf<T>(defaults);
+        postBuildActions[typeof(T)] = afterCtorPopulation;
+    }
+      public void DefineConstructionOf<T>(object defaults)
     {
       creationStrategies.Add(typeof(T), CreationStrategy.Constructor);
       AddDefaultsTo<T>(constructorBlueprints, defaults);
