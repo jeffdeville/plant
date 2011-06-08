@@ -14,6 +14,7 @@ namespace Plant.Core
     private readonly Blueprints constructorBlueprints = new Blueprints();
     private readonly IDictionary<Type, CreationStrategy> creationStrategies = new Dictionary<Type, CreationStrategy>();
     private readonly IDictionary<Type, object> postBuildActions = new Dictionary<Type, object>();
+    private readonly IDictionary<Type, int> sequenceValues = new Dictionary<Type, int>();
 
     private T CreateViaProperties<T>(Properties userProperties)
     {
@@ -31,11 +32,18 @@ namespace Plant.Core
 
       var props = Merge(defaultProperties, userProperties);
 
-      return
-        (T)
-        constructor.Invoke(
+      return (T) constructor.Invoke(
           props.Keys.OrderBy(prop => paramNames.IndexOf(prop.Name.ToLower())).
-          Select(prop => props[prop]).ToArray());
+          Select(prop => GetPropertyValue<T>(props[prop])).ToArray());
+    }
+
+    private object GetPropertyValue<T>(object property)
+    {
+        if (typeof(ILazyProperty).IsAssignableFrom(property.GetType()))
+            return ((ILazyProperty)property).Func.DynamicInvoke();
+        if (typeof(ISequence).IsAssignableFrom(property.GetType()))
+            return ((ISequence)property).Func.DynamicInvoke(sequenceValues[typeof(T)]++);
+        return property;
     }
 
     private Properties Merge(Properties defaults, Properties overrides)
@@ -70,23 +78,38 @@ namespace Plant.Core
       if(creationStrategies.ContainsKey(typeof(T)))
         return creationStrategies[typeof (T)];
       throw new TypeNotSetupException(string.Format("No creation strategy defined for type: {0}", typeof(T)));
-
     }
 
-    private static void SetProperties<T>(Properties properties, T instance)
+    private void SetProperties<T>(Properties properties, T instance)
     {
       properties.Keys.ToList().ForEach(property =>
-                                    {
-                                      var instanceProperty = instance.GetType().GetProperties().FirstOrDefault(prop => prop.Name == property.Name);
-                                      if (instanceProperty == null) throw new PropertyNotFoundException(property.Name, properties[property]);
+        {
+            var instanceProperty = instance.GetType().GetProperties().FirstOrDefault(prop => prop.Name == property.Name);
+            if (instanceProperty == null) throw new PropertyNotFoundException(property.Name, properties[property]);
 
-                                      var value = properties[property];
-                                      if (typeof(ILazyProperty).IsAssignableFrom(value.GetType()))
-                                        AssignLazyPropertyResult(instance, instanceProperty, value);
-                                      else
-                                        instanceProperty.SetValue(instance, value, null);
-                                    });
+            var value = properties[property];
+            if (typeof(ILazyProperty).IsAssignableFrom(value.GetType()))
+              AssignLazyPropertyResult(instance, instanceProperty, value);
+            else if(typeof(ISequence).IsAssignableFrom(value.GetType()))
+              AssignSequenceResult(instance, instanceProperty, value, sequenceValues[typeof(T)]);
+            else
+              instanceProperty.SetValue(instance, value, null);
+        });
+        sequenceValues[typeof (T)]++;
     }
+
+      private static void AssignSequenceResult<T>(T instance, PropertyInfo instanceProperty, object value, int sequenceValue)
+      {
+          var sequence = (ISequence) value;
+
+          if (sequence.Func.Method.ReturnType != instanceProperty.PropertyType)
+              throw new LazyPropertyHasWrongTypeException(string.Format("Cannot assign type {0} to property {1} of type {2}",
+                sequence.Func.Method.ReturnType,
+                instanceProperty.Name,
+                instanceProperty.PropertyType));
+          // I can pass in the instance as a parameter to this function, but only if I'm using property-setters
+          instanceProperty.SetValue(instance, sequence.Func.DynamicInvoke(sequenceValue), null);      
+      }
 
     private static void AssignLazyPropertyResult<T>(T instance, PropertyInfo instanceProperty, object value)
     {
@@ -118,6 +141,7 @@ namespace Plant.Core
     {
         creationStrategies.Add(typeof(T), CreationStrategy.Property);
         AddDefaultsTo<T>(propertyBlueprints, defaults);
+        sequenceValues.Add(typeof(T), 0);
     }
 
     public void DefineConstructionOf<T>(object defaults, Action<T> afterCtorPopulation)
@@ -129,6 +153,7 @@ namespace Plant.Core
     {
       creationStrategies.Add(typeof(T), CreationStrategy.Constructor);
       AddDefaultsTo<T>(constructorBlueprints, defaults);
+      sequenceValues.Add(typeof(T), 0);
     }
 
     private void AddDefaultsTo<T>(Blueprints blueprints, object defaults)

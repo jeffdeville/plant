@@ -20,13 +20,14 @@ Currently Plant supports
 * Overriding default property and constructor argument values
 * Modular object definition
 * Lazily evaluated property and constructor argument values
+* Sequenced properties
+* Allow user to specify after-create actions on models (to save the model to the DB after creation, for instance)
 
 Targetted features can be found in the issues list for the project.  Some specific ones are
 
 * Allowing multiple different definitions for one object
-* Sequenced properties
 * Specify associated instances
-* Allow user to specify after-create actions on models (to save the model to the DB after creation, for instance)
+
 
 Terms
 -----
@@ -89,6 +90,25 @@ To define a Blueprint with a lazily evaluated property, set the value to new Laz
         plant.DefinePropertiesOf<Person>(new
                                {
                                   UniqueID = new LazyProperty<int>(() => IDGenerator.GenerateNewID())
+                               });
+      }
+    }
+  
+where TPropertyType (int in this case) is the type of the property and also that returned from the lambda.
+
+Sequenced properties
+---------------------------
+
+To define a Blueprint property that is evaluated lazily, but with a sequence counter, set the value to new Sequence<TPropertyType>(lambda) like so:
+
+    class PersonBlueprint : Blueprint
+    {
+      public void SetupPlant(BasePlant plant)
+      {
+        plant.DefinePropertiesOf<Person>(new
+                               {
+                                  ID = new Sequence<int>((sequenceValue) => sequenceValue)
+                                  Name = new Sequence<int>((sequenceValue) => "test: " + sequenceValue)
                                });
       }
     }

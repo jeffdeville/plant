@@ -147,6 +147,32 @@ namespace Plant.Tests
 
         Assert.AreEqual("Blue", testPlant.Create<House>(new { Color = "Blue" }).Color);
     }
+
+    [Test]
+    public void Should_increment_values_in_a_sequence_with_property_construction()
+    {
+      var testPlant = new BasePlant();
+      testPlant.DefinePropertiesOf<Person>(new
+        {
+            FirstName = new Sequence<string>((i) => "FirstName" + i)
+        });
+        Assert.AreEqual("FirstName0", testPlant.Create<Person>().FirstName);
+        Assert.AreEqual("FirstName1", testPlant.Create<Person>().FirstName);
+    }
+
+    [Test]
+    public void Should_increment_values_in_a_sequence_with_ctor_construction()
+    {
+        var testPlant = new BasePlant();
+        testPlant.DefineConstructionOf<House>(new
+        {
+            Color = new Sequence<string>((i) => "Color" + i),
+            SquareFoot = 10
+        });
+        Assert.AreEqual("Color0", testPlant.Create<House>().Color);
+        Assert.AreEqual("Color1", testPlant.Create<House>().Color);
+    }
+
   }
   namespace TestBlueprints
   {
