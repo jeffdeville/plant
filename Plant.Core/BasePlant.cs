@@ -41,7 +41,9 @@ namespace Plant.Core
     {
         if (typeof(ILazyProperty).IsAssignableFrom(property.GetType()))
             return ((ILazyProperty)property).Func.DynamicInvoke();
-        return typeof(ISequence).IsAssignableFrom(property.GetType()) ? ((ISequence)property).Func.DynamicInvoke(sequenceValues[typeof(T)]++) : property;
+        if (typeof(ISequence).IsAssignableFrom(property.GetType()))
+            return ((ISequence)property).Func.DynamicInvoke(sequenceValues[typeof(T)]++);
+        return property;
     }
 
     private Properties Merge(Properties defaults, Properties overrides)
@@ -91,7 +93,7 @@ namespace Plant.Core
             else if(typeof(ISequence).IsAssignableFrom(value.GetType()))
               AssignSequenceResult(instance, instanceProperty, value, sequenceValues[typeof(T)]);
             else
-            instanceProperty.SetValue(instance, value, null);
+              instanceProperty.SetValue(instance, value, null);
         });
         sequenceValues[typeof (T)]++;
     }
